@@ -6,7 +6,8 @@ import Footer from "../components/Footer";
 import Sidebar from "../components/Sidebar";
 import contract from "../contracts/contract.json";
 import { useCookies } from "react-cookie";
-import { create } from 'ipfs-http-client'
+import { create } from "ipfs-http-client";
+import Modal from "../components/InsuranceModal";
 
 const Insurance = () => {
   const web3 = new Web3(window.ethereum);
@@ -25,20 +26,21 @@ const Insurance = () => {
         .call()
         .then(async (res) => {
           for (let i = res.length - 1; i >= 0; i--) {
-            if (res[i] === cookies['hash']) {
-              const data = await (await fetch(`http://localhost:8080/ipfs/${res[i]}`)).json();
+            if (res[i] === cookies["hash"]) {
+              const data = await (
+                await fetch(`http://localhost:8080/ipfs/${res[i]}`)
+              ).json();
               ins.push(data.insurance);
               break;
             }
           }
         });
-        // console.log(ins);
+      // console.log(ins);
       setInsurance(ins);
     }
     getIns();
     return;
   }, [insurances.length]);
-
 
   const [addFormData, setAddFormData] = useState({
     company: "",
@@ -52,7 +54,6 @@ const Insurance = () => {
     setAddFormData(newFormData);
   };
 
-
   async function submit() {
     var accounts = await window.ethereum.request({
       method: "eth_requestAccounts",
@@ -64,29 +65,34 @@ const Insurance = () => {
       .call()
       .then(async (res) => {
         for (let i = res.length - 1; i >= 0; i--) {
-          if (res[i] === cookies['hash']) {
-            const data = await (await fetch(`http://localhost:8080/ipfs/${res[i]}`)).json();
+          if (res[i] === cookies["hash"]) {
+            const data = await (
+              await fetch(`http://localhost:8080/ipfs/${res[i]}`)
+            ).json();
             const ins = data.insurance;
             ins.push(addFormData);
 
             data.insurance = ins;
             let client = create();
-            client = create(new URL('http://127.0.0.1:5001'));
+            client = create(new URL("http://127.0.0.1:5001"));
             const { cid } = await client.add(JSON.stringify(data));
-            const hash = cid['_baseCache'].get('z');
+            const hash = cid["_baseCache"].get("z");
 
-            await mycontract.methods.addPatient(hash).send({ from: currentaddress }).then(() => {
-              setCookie('hash', hash);
-              alert("Insurance Added");
-              window.location.reload();
-            }).catch((err) => {
-              console.log(err);
-            })
+            await mycontract.methods
+              .addPatient(hash)
+              .send({ from: currentaddress })
+              .then(() => {
+                setCookie("hash", hash);
+                alert("Insurance Added");
+                window.location.reload();
+              })
+              .catch((err) => {
+                console.log(err);
+              });
           }
         }
       });
   }
-
 
   async function del(policy) {
     var accounts = await window.ethereum.request({
@@ -100,53 +106,69 @@ const Insurance = () => {
       contract["address"]
     );
 
-    mycontract.methods.getPatient().call().then(async (res) => {
-      for (let i = res.length - 1; i >= 0; i--) {
-        if (res[i] === cookies['hash']) {
-          const data = await (await fetch(`http://localhost:8080/ipfs/${res[i]}`)).json();
-          const alls = data.insurance;
-          const newList = [];
-          for (let i = 1; i < alls.length; i++) {
-            if (alls[i].policyNo === policy) {
-              continue;
+    mycontract.methods
+      .getPatient()
+      .call()
+      .then(async (res) => {
+        for (let i = res.length - 1; i >= 0; i--) {
+          if (res[i] === cookies["hash"]) {
+            const data = await (
+              await fetch(`http://localhost:8080/ipfs/${res[i]}`)
+            ).json();
+            const alls = data.insurance;
+            const newList = [];
+            for (let i = 1; i < alls.length; i++) {
+              if (alls[i].policyNo === policy) {
+                continue;
+              } else {
+                newList.push(alls[[i]]);
+              }
             }
-            else {
-              newList.push(alls[[i]]);
-            }
+            data.insurance = newList;
+
+            let client = create();
+            client = create(new URL("http://127.0.0.1:5001"));
+            const { cid } = await client.add(JSON.stringify(data));
+            const hash = cid["_baseCache"].get("z");
+
+            await mycontract.methods
+              .addPatient(hash)
+              .send({ from: currentaddress })
+              .then(() => {
+                setCookie("hash", hash);
+                alert("Deleted");
+                window.location.reload();
+              })
+              .catch((err) => {
+                console.log(err);
+              });
           }
-          data.insurance = newList;
-
-          let client = create();
-          client = create(new URL('http://127.0.0.1:5001'));
-          const { cid } = await client.add(JSON.stringify(data));
-          const hash = cid['_baseCache'].get('z');
-
-          await mycontract.methods.addPatient(hash).send({ from: currentaddress }).then(() => {
-            setCookie('hash', hash);
-            alert("Deleted");
-            window.location.reload();
-          }).catch((err) => {
-            console.log(err);
-          })
         }
-      }
-    })
+      });
   }
 
   function showInsurances() {
     if (insurances.length > 0) {
-      return insurances[0].map(data => {
+      return insurances[0].map((data) => {
         return (
           <tr>
             <td>{data.company}</td>
             <td>{data.policyNo}</td>
             <td>{data.expiry}</td>
             <td>
-              <input type="button" value="Delete" onClick={() => del(data.policyNo)} />
+              <Modal />
+            </td>
+            <td>
+              <input
+                style={{ textDecoration: "underline" }}
+                type="button"
+                value="Delete"
+                onClick={() => del(data.policyNo)}
+              />
             </td>
           </tr>
-        )
-      })
+        );
+      });
     }
   }
 
@@ -165,7 +187,14 @@ const Insurance = () => {
           <Navbar />
         </div>
         <div
-          style={{ display: "flex", flexDirection: "column", padding: "4rem", justifyContent: "center", alignItems: "flex-end", gap: "4rem" }}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            padding: "4rem",
+            justifyContent: "center",
+            alignItems: "flex-end",
+            gap: "4rem",
+          }}
         >
           <form style={{ width: "100%" }}>
             <table style={{ borderCollapse: "collapse" }}>
@@ -177,20 +206,22 @@ const Insurance = () => {
                   <th className="">Actions</th>
                 </tr>
               </thead>
-              <tbody>
-                {showInsurances()}
-              </tbody>
+              <tbody>{showInsurances()}</tbody>
             </table>
           </form>
 
-          <form style={{
-            display: 'flex', flexDirection: 'column', gap: '1rem',
-            backgroundColor: 'rgb(3, 201, 215)',
-            justifyContent: 'center',
-            alignItems: 'center',
-            padding: '24px',
-            borderRadius: '20px',
-          }}>
+          <form
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "1rem",
+              backgroundColor: "rgb(3, 201, 215)",
+              justifyContent: "center",
+              alignItems: "center",
+              padding: "24px",
+              borderRadius: "20px",
+            }}
+          >
             <h2>Add an Insurance</h2>
             <input
               type="text"
